@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: bitnami/postgresql:latest
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=pei
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U docker']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    image: node:18
+    working_dir: /api
+    volumes:
+      - ./api:/api
+      - ./.env:/api/.env
+    depends_on:
+      postgres:
+        condition: service_healthy # Aguarda o PostgreSQL estar pronto
+    ports:
+      - '8080:8080'
+      - '5555:5555'
+    command:
+      [
+        'bash',
+        '-c',
+        'npm install && npx prisma migrate deploy && npm run seed && npm run dev'
+      ]
+  web:
+    image: node:18
+    working_dir: /web
+    volumes:
+      - ./web:/web
+      - ./.env:/web/.env
+    ports:
+      - '80:80'
+    command: ['bash', '-c', 'npm install && npm run start']
+    depends_on:
+      - api
